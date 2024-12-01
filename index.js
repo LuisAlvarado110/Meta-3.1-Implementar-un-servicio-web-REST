@@ -1,12 +1,10 @@
 const express = require('express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
-const path = require('path');
+const estudiantesModule = require('./estudiantes'); // Importar módulo de estudiantes
 
 const app = express();
 app.use(express.json());
-
-const estudiantes = require("./estudiantes");
 
 // Configuración de Swagger
 const swaggerOptions = {
@@ -20,15 +18,16 @@ const swaggerOptions = {
     servers: [
       {
         url: 'http://localhost:3000',
-        description: 'Servidor local'
-      }
-    ]
+        description: 'Servidor local',
+      },
+    ],
   },
-  apis: ['./index.js'], // Archivo donde están documentados los endpoints
+  apis: ['./index.js'], // Nombre correcto del archivo
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
 /**
  * @swagger
  * components:
@@ -38,18 +37,22 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *       required:
  *         - id
  *         - nombre
+ *         - matricula
  *         - semestreIngreso
  *         - creditosCursados
  *       properties:
  *         id:
- *           type: string
- *           description: Matrícula del estudiante
+ *           type: integer
+ *           description: ID del estudiante
  *         nombre:
  *           type: string
  *           description: Nombre completo del estudiante
- *         semestreIngreso:
+ *         matricula:
  *           type: integer
- *           description: Año del semestre de ingreso
+ *           description: Matrícula del estudiante
+ *         semestreIngreso:
+ *           type: string
+ *           description: Semestre de ingreso del estudiante
  *         creditosCursados:
  *           type: integer
  *           description: Créditos cursados por el estudiante
@@ -70,13 +73,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
  *               items:
  *                 $ref: '#/components/schemas/Estudiante'
  */
-
-
-// Sirviendo archivos estáticos (HTML, CSS, JS)
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Endpoints CRUD para estudiantes
 app.get('/estudiantes', (req, res) => {
+  const estudiantes = estudiantesModule.findAll();
   res.json(estudiantes);
 });
 
@@ -84,14 +82,14 @@ app.get('/estudiantes', (req, res) => {
  * @swagger
  * /estudiantes/{id}:
  *   get:
- *     summary: Obtener un estudiante por matrícula
+ *     summary: Obtener un estudiante por ID
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Matrícula del estudiante
+ *           type: integer
+ *         description: ID del estudiante
  *     responses:
  *       200:
  *         description: Datos del estudiante
@@ -103,13 +101,14 @@ app.get('/estudiantes', (req, res) => {
  *         description: Estudiante no encontrado
  */
 app.get('/estudiantes/:id', (req, res) => {
-  const estudiante = estudiantes.find(e => e.id === req.params.id);
+  const estudiante = estudiantesModule.findById(parseInt(req.params.id));
   if (estudiante) {
     res.json(estudiante);
   } else {
     res.status(404).send('Estudiante no encontrado');
   }
 });
+
 /**
  * @swagger
  * /estudiantes:
@@ -125,12 +124,12 @@ app.get('/estudiantes/:id', (req, res) => {
  *       201:
  *         description: Estudiante creado
  */
-
 app.post('/estudiantes', (req, res) => {
   const nuevoEstudiante = req.body;
-  estudiantes.add(nuevoEstudiante);
-  res.status(201).json(nuevoEstudiante);
+  const estudiante = estudiantesModule.add(nuevoEstudiante);
+  res.status(201).json(estudiante);
 });
+
 /**
  * @swagger
  * /estudiantes/{id}:
@@ -141,8 +140,8 @@ app.post('/estudiantes', (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Matrícula del estudiante
+ *           type: integer
+ *         description: ID del estudiante
  *     requestBody:
  *       required: true
  *       content:
@@ -155,16 +154,15 @@ app.post('/estudiantes', (req, res) => {
  *       404:
  *         description: Estudiante no encontrado
  */
-
 app.put('/estudiantes/:id', (req, res) => {
-  const index = estudiantes.findIndex(e => e.id === req.params.id);
-  if (index !== -1) {
-    estudiantes[index] = req.body;
-    res.json(estudiantes[index]);
+  const actualizado = estudiantesModule.save(parseInt(req.params.id), req.body);
+  if (actualizado) {
+    res.json(actualizado);
   } else {
     res.status(404).send('Estudiante no encontrado');
   }
 });
+
 /**
  * @swagger
  * /estudiantes/{id}:
@@ -175,28 +173,30 @@ app.put('/estudiantes/:id', (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Matrícula del estudiante
+ *           type: integer
+ *         description: ID del estudiante
  *     responses:
  *       204:
  *         description: Estudiante eliminado
  *       404:
  *         description: Estudiante no encontrado
  */
-
-app.delete('/estudiantes/:id', (req, res) => {
-  const index = estudiantes.findIndex(e => e.id === req.params.id);
-  if (index !== -1) {
-    estudiantes.splice(index, 1);
+/*app.delete('/estudiantes/:id', (req, res) => {
+  const index = estudiantesModule.findById(parseInt(req.params.id));
+  if (index) {
+    estudiantesModule.estudiantes.splice(index, 1);
     res.status(204).send();
   } else {
     res.status(404).send('Estudiante no encontrado');
   }
+});*/
+
+app.delete('/estudiantes/:id', (req,res) => {
+  res.end('Borrando los datos del estudiante ' + req.params.id);
 });
 
 // Iniciar servidor
 app.listen(3000, () => {
   console.log('Servidor escuchando en el puerto 3000');
-  console.log('Visita http://localhost:3000 para ver la página');
   console.log('Documentación de Swagger en http://localhost:3000/api-docs');
 });
